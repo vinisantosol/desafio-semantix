@@ -14,7 +14,8 @@ pacotesNecessarios = c('dplyr', 'ggplot2', 'party')
 
 for(i in pacotesNecessarios){
   funcao_instala(pacote = i)
-} ```
+} 
+```
 
 
 ## Descrição do problema
