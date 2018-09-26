@@ -2,7 +2,8 @@
 
 ## Instalando pacotes necessários 
 
-`` funcao_pacote = function(pacote){
+```R
+ funcao_pacote = function(pacote){
 if(!(pacote %in% installed.packages())){ 
   install.packages(pacote)
 }
@@ -13,7 +14,7 @@ pacotesNecessarios = c('dplyr', 'ggplot2', 'party')
 
 for(i in pacotesNecessarios){
   funcao_instala(pacote = i)
-} ``
+} ```
 
 
 ## Descrição do problema
