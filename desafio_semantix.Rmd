@@ -1,0 +1,288 @@
+---
+title: "Desafio - Semantix"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+## Definições
+
++ Dados relacionados com campanha de marketing direto de uma instituição bancária. 
++ As campanhas de marketing foram baseadas em chamadas telefônicas.
++ Contatavam o cliente mais de uma vez para acessar se o produto (depósito a prazo bancário) seria aceito ou não.
+
+## Variáveis
+
+Input: 
+  
+  + Informações sobre o cliente
+   
+    1. idade (numérica)
+    2. emprego: tipo de emprego
+    3. estado civil (levando em consideração que "divorciado"" significa divorciado ou viúvo)
+    4. educação
+    5. tem crédito?
+    6. saldo médio anual 
+    7. tem empréstimo imobiliário? 
+    8. tem empréstimo pessoal?
+  
+  + Informações sobre o último contato da campanha atual: 
+   
+    9. contato
+    10. último dia de contato no mês
+    11. mês do último contato do ano 
+    12. duração do último contato em segundos
+    13. número de contatos realizados durante esta campanha
+    14. número de dias que passaram depois que o cliente foi contatado pela última vez de uma campanha anterior (-1 significa que o cliente não foi contatado anteriormente)
+    15. número de contatos realizados antes desta campanha
+    16. resultado da campanha de marketing anterior
+    
+Output: 
+  
+  + Variável de interesse: 
+  
+    17. o cliente assinou um depósito a prazo?
+  
+
+### Sumário dos dados
+
+#### Público geral
+
+```{r,warning=FALSE, results=FALSE, error=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(party)
+```
+  
+    
+```{r, warning=FALSE, results=FALSE, error=FALSE, message=FALSE}
+desafioSemantix = read.csv('~/Documentos/desafio_ds/semantix/bank-full.csv', sep = ';')
+```
+
+```{r}
+summary(desafioSemantix)
+```
+
+
+Sumário dos dados:
+
++ A média da idade dos clientes é de aproximadamente 41 anos. 
++ 59% dos clientes são 'blue-collar', 'management' ou 'technician'.
++ A maioria dos clientes é casado.
++ Mais de 90% dos clientes tem 2º grau ou 3 grau.
++ A maioria dos clientes não tem cŕedito. 
++ 25% dos clientes tem saldo médio até R$72,00. 
++ Mais de 50% dos clientes tem empréstimo imobiliário. 
++ A maioria dos clientes não tem empréstimo pessoal.
++ Mais de 60% dos clientes é contatado através do celular. 
++ A maioria dos clientes tiveram o último contato em maio.
++ Em média, a duração de contato é de aproximadamente 258 segundos (~ 4 minutos).
++ Em média, o número de contatos na campanha foi de aproximadamente 3.
++ 75% dos clientes não foram contatados anteriormente.
++ Mais de 80% dos clientes tem como resultado da campanha anterior como "desconhecido".
++ Mais de 80% dos clientes não assinaram o depósito a prazo.
+
+#### Público que tiveram campanha anterior 
+
+```{r}
+summary(desafioSemantix %>% filter(previous != 0) )
+```
+
++ Em média, número de dias que passaram depois que o cliente foi contatado pela última vez de uma campanha anterior é de aproximadamente 225 dias.
++ Em média, número realizado de contatos foi de aproximadamente 3. 
++ O resultado da campanha teve maior proporção de falha.
+
+#### Resposta das perguntas 
+
+1. Qual profissão tem mais tendência a fazer um empréstimo? De qual tipo?
+
+```{r}
+as.data.frame(prop.table(table(desafioSemantix$job, desafioSemantix$housing), margin = 1)) %>% 
+  filter(Var2 == 'yes') %>% 
+  ggplot(aes(x = reorder(Var1, Freq), y = Freq)) + 
+  xlab('Profissão') + 
+  ylab('Chance de ter empréstimo imobiliário')+
+  geom_bar(stat = 'identity') + 
+  geom_hline(yintercept = 0.5) + 
+  coord_flip() + 
+  theme_bw()
+```
+
++ 'blue-collar', 'services', 'admin.', 'entrepeneur' e 'technician' têm chance maior que 0,5 de converter em empréstimo imobiliário. 
++ 'blue-collar' é a profissão que mais tende a ter empréstimo imobiliário.
+
+
+```{r}
+as.data.frame(prop.table(table(desafioSemantix$job, desafioSemantix$loan), margin = 1) )  %>% 
+  filter(Var2 == 'yes') %>% 
+  ggplot(aes(x = reorder(Var1, Freq), y = Freq)) + 
+  xlab('Profissão') + 
+  ylab('Chance de ter empréstimo pessoal')+
+  geom_bar(stat = 'identity') + 
+  geom_hline(yintercept = 0.5) + 
+  coord_flip() + 
+  theme_bw()
+
+```
+
++ Todas as profissões têm chances menor que 0,5 de ter empréstimo pessoal. 
++ Entre todas as profissões, 'entrenepeur' é a que apresenta mais chance de ter empréstimo pessoal.
+
+2. Fazendo uma relação entre número de contatos e sucesso da campanha quais
+são os pontos relevantes a serem observados?
+
+```{r}
+desafioSemantix %>% 
+  ggplot(aes(x = y, y = campaign)) + 
+  geom_boxplot() + 
+  xlab('depósito a prazo?') + 
+  ylab('campanha') + 
+  theme_bw()
+```
+
+
+```{r}
+desafioSemantix %>% 
+  group_by(y) %>% 
+  summarise(mean(campaign), sd(campaign),  median(campaign), max(campaign), quantile(campaign, probs = 0.25), quantile(campaign, probs = 0.75), quantile(campaign, probs = 0.99))
+```
+
++ Os clientes que rejeitam o depósito a prazo apresentam máximo maior de contatos do que os que aceitam. 
++ O número médio de contatos adequado para adesão seria de 2 contatos. 
++ O número máximo de contatos adequado para adesão seria de 10 (99% dos clientes que foram aprovados tiveram até 10 contatos).
+
+4. O resultado da campanha anterior tem relevância na campanha atual?
+
+```{r}
+as.data.frame(prop.table(table(desafioSemantix$poutcome, desafioSemantix$y), margin = 1)) %>% 
+    filter(Var2 == 'yes') %>% 
+    ggplot(aes(x = reorder(Var1, Freq), y = Freq)) + 
+    xlab('Campanha anterior') + 
+   ylab('Chance de aderir o depósito a prazo')+
+  geom_bar(stat = 'identity') + 
+  geom_hline(yintercept = 0.5) + 
+  coord_flip() + 
+  theme_bw()
+```
+
++ Quando a campanha anterior foi um sucesso, a campanha atual terá mais chance de ser também.
+
+5. Qual o fator determinante para que o banco exija um seguro de crédito?
+
+```{r}
+treeSeguroCredito = ctree(default ~ marital + job + age + balance + education + housing + loan, data = desafioSemantix)
+```
+
+
+```{r, fig.width=20, fig.height=10}
+plot(treeSeguroCredito)
+```
+
++ Pela árvore, verificamos que o 'balance' (saldo médio) é o fator que mais quebra pra definir a chance de dar seguro de crédito ou não, demonstrando ser a mais importante para impacto desta.
+
+```{r, fig.width=10, fig.height=10}
+desafioSemantix %>% 
+  ggplot(aes(group = default, x = balance, colour = default)) + 
+  geom_density()
+```
+
+```{r}
+desafioSemantix %>% 
+  group_by(default) %>% 
+  summarise(mean(balance), median(balance), sd(balance))
+```
+
++ Podemos averiguar que a distribuição do saldo médio difere entre ter ou não ter seguro de crédito. 
++ Quando o saldo é positivo, o cliente não tem seguro de crédito. 
++ Quando o saldo é negativo, o cliente tem seguro de crédito.
+
+6. Quais são as características mais proeminentes de um cliente que possua
+empréstimo imobiliário?
+
+```{r}
+as.data.frame(prop.table(table(desafioSemantix$marital, desafioSemantix$housing), margin = 1)) %>% 
+  filter(Var2 == 'yes') %>% 
+  ggplot(aes(x = reorder(Var1, Freq), y = Freq)) + 
+  xlab('Estado Civil') + 
+  ylab('Chance de ter empréstimo imobiliário')+
+  geom_bar(stat = 'identity') + 
+  geom_hline(yintercept = 0.5) + 
+  coord_flip() + 
+  theme_bw()
+```
+
+```{r}
+as.data.frame(prop.table(table(desafioSemantix$education, desafioSemantix$housing), margin = 1)) %>% 
+  filter(Var2 == 'yes') %>% 
+  ggplot(aes(x = reorder(Var1, Freq), y = Freq)) + 
+  xlab('Educação') + 
+  ylab('Chance de ter empréstimo imobiliário')+
+  geom_bar(stat = 'identity') + 
+  geom_hline(yintercept = 0.5) + 
+  coord_flip() + 
+  theme_bw()
+```
+
+```{r}
+as.data.frame(prop.table(table(desafioSemantix$default, desafioSemantix$housing), margin = 1)) %>% 
+  filter(Var2 == 'yes') %>% 
+  ggplot(aes(x = reorder(Var1, Freq), y = Freq)) + 
+  xlab('Profissão') + 
+  ylab('Chance de ter empréstimo imobiliário')+
+  geom_bar(stat = 'identity') + 
+  geom_hline(yintercept = 0.5) + 
+  coord_flip() + 
+  theme_bw()
+```
+
+```{r}
+as.data.frame(prop.table(table(desafioSemantix$loan, desafioSemantix$housing), margin = 1)) %>% 
+  filter(Var2 == 'yes') %>% 
+  ggplot(aes(x = reorder(Var1, Freq), y = Freq)) + 
+  xlab('Profissão') + 
+  ylab('Chance de ter empréstimo imobiliário')+
+  geom_bar(stat = 'identity') + 
+  geom_hline(yintercept = 0.5) + 
+  coord_flip() + 
+  theme_bw()
+```
+
+```{r}
+desafioSemantix %>% 
+  ggplot(aes(x = housing, y = balance)) + 
+  geom_boxplot()
+```
+
+
+```{r}
+desafioSemantix %>% 
+  group_by(housing) %>% 
+  summarise(mean(balance), median(balance), quantile(balance, 0.25), sd(balance))
+```
+
+```{r}
+desafioSemantix %>% 
+  ggplot(aes(x = housing, y = age)) + 
+  geom_boxplot()
+```
+
+
+```{r}
+desafioSemantix %>% 
+  group_by(housing) %>% 
+  summarise(mean(age), median(age), quantile(age, 0.25), sd(age), quantile(age, 0.75))
+```
+
+
+```{r}
+treeEmprestimoImobiliario = ctree(housing ~ marital + job + age + balance + education + default + loan, data = desafioSemantix, controls =  ctree_control(maxdepth = 4))
+```
+
+```{r,fig.width=30, fig.height=20}
+plot(treeEmprestimoImobiliario)
+```
+
++ Olhando para as análises, podemos concluir que com chance de aproximadamente 0,8 de um cliente obter empréstimo imobiliário, tem-se como característica: 
+  - Idade menor que 44 anos 
+  - Educação primária, secundária ou desconhecida. 
+  - Profissão 'blue-collar'
